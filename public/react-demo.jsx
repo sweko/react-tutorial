@@ -1,4 +1,4 @@
-var data = [
+var dataLocal = [
     {
         id: 1234,
         author: "Wekoslav",
@@ -54,28 +54,94 @@ var CommentList = React.createClass({
 });
 
 var CommentForm = React.createClass({
+  getInitialState: function() {
+    return {author: '', text: ''};
+  },
+  handleAuthorChange: function(e) {
+    this.setState({author: e.target.value});
+  },
+  handleTextChange: function(e) {
+    this.setState({text: e.target.value});
+  },
+  handleSubmit: function(e) {
+    e.preventDefault();
+    var author = this.state.author.trim();
+    var text = this.state.text.trim();
+    if (!text || !author) {
+      return;
+    };
+    this.props.onCommentSubmit({author: author, text: text});
+    this.setState({author: '', text: ''});
+  },
   render: function() {
     return (
-      <div className="commentForm">
-        Hello, world! I am a CommentForm.
-      </div>
+      <form className="commentForm" onSubmit={this.handleSubmit}>
+        <input type="text" placeholder="Your name" 
+            value={this.state.author}
+            onChange={this.handleAuthorChange}
+        />
+        <input type="text" placeholder="Say something..." 
+            value={this.state.text}
+            onChange={this.handleTextChange}
+        />
+        <input type="submit" value="Post" />
+      </form>
     );
   }
 });
 
 var CommentBox = React.createClass({
+   loadCommentsFromServer: function(){
+       var self = this;
+    $.ajax({
+      url: self.props.url,
+      dataType: 'json',
+      cache: false,
+      success: function(data) {
+          console.log("setState");
+        self.setState({data: data});
+      },
+      error: function(xhr, status, err) {
+        console.error(self.props.url, status, err.toString());
+      }
+    });
+   },
+  getInitialState: function() {
+    console.log("getInitialState");
+    return {data: dataLocal};
+  },  
+  componentDidMount: function() {
+        this.loadCommentsFromServer();
+        setInterval(this.loadCommentsFromServer, 500);    
+  },
+  handleCommentSubmit: function(comment) {
+      var self = this;
+    $.ajax({
+      url: self.props.url,
+      dataType: 'json',
+      type: 'POST',
+      data: comment,
+      success: function(data) {
+        self.setState({data: data});
+      },
+      error: function(xhr, status, err) {
+        console.error(self.props.url, status, err.toString());
+      }
+    });
+  },
   render: function() {
+      console.log("render");
     return (
         <div class="commentBox">
             <h1>Comments</h1>
-            <CommentList data={this.props.data}/>
-            <CommentForm />
+            <CommentList data={this.state.data}/>
+            <CommentForm onCommentSubmit={this.handleCommentSubmit}/>
         </div>
     );
   }
 });
 
 ReactDOM.render(
-    <CommentBox data={data} />,
+    <CommentBox url="/api/comments" />,
   document.getElementById('content')
 );
